@@ -2,12 +2,15 @@
 import { useEffect, useReducer } from "react";
 import Header from "./Header";
 import Loader from "./Loader";
-import Error from "./Error";
+import Main from "./Main";
 import StartScreen from "./StartScreen";
 import Progress from "./Progress";
 import Question from "./Question";
+import FinishScreen from "./FinishScreen";
+import Footer from "./Footer";
+import Timer from "./Timer";
 import NextButton from "./NextButton";
-import Main from "./Main";
+import Error from "./Error";
 
 const initalState = {
   questions: [],
@@ -15,7 +18,10 @@ const initalState = {
   status: "loading",
   answer: null,
   points: 0,
+  highScore: 0,
+  timeLeft: null,
 };
+const ANSWER_TIME = 30;
 
 function reducer(state, action) {
   switch (action.type) {
@@ -24,7 +30,11 @@ function reducer(state, action) {
     case "resolved":
       return { ...state, questions: action.payload, status: "resolved" };
     case "start":
-      return { ...state, status: "start" };
+      return {
+        ...state,
+        status: "start",
+        timeLeft: state.questions.length * ANSWER_TIME,
+      };
     case "newAnswer":
       const question = state.questions[state.index];
       return {
@@ -37,6 +47,25 @@ function reducer(state, action) {
       };
     case "nextQuestion":
       return { ...state, index: state.index + 1, answer: null };
+    case "finish":
+      return {
+        ...state,
+        status: "finish",
+        highScore:
+          state.highScore >= state.points ? state.highScore : state.points,
+      };
+    case "restart":
+      return {
+        ...state,
+        highScore: state.highScore,
+        status: "start",
+        index: 0,
+        answer: null,
+        points: 0,
+        timeLeft: state.questions.length * ANSWER_TIME,
+      };
+    case "tick":
+      return { ...state, timeLeft: state.timeLeft - 1 };
     case "error":
       return { ...state, status: "error" };
     default:
@@ -45,10 +74,10 @@ function reducer(state, action) {
 }
 
 function App() {
-  const [{ questions, status, index, answer, points }, dispatch] = useReducer(
-    reducer,
-    initalState
-  );
+  const [
+    { questions, status, index, answer, points, highScore, timeLeft },
+    dispatch,
+  ] = useReducer(reducer, initalState);
 
   useEffect(() => {
     async function loadData() {
@@ -90,12 +119,28 @@ function App() {
               answer={answer}
             />
             <Question
-              question={questions[index]}
               dispatch={dispatch}
+              question={questions[index]}
               answer={answer}
             />
-            <NextButton dispatch={dispatch} answer={answer} />
+            <Footer>
+              <NextButton
+                dispatch={dispatch}
+                answer={answer}
+                index={index}
+                numQuestions={numQuestions}
+              />
+              <Timer dispatch={dispatch} timeLeft={timeLeft} />
+            </Footer>
           </>
+        )}
+        {status === "finish" && (
+          <FinishScreen
+            dispatch={dispatch}
+            points={points}
+            maxPoints={maxPoints}
+            highScore={highScore}
+          />
         )}
       </Main>
     </div>
